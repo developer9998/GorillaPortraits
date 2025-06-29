@@ -1,13 +1,16 @@
 ﻿using GorillaNetworking;
 using GorillaPortraits.Models;
 using GorillaPortraits.Tools;
+using GorillaPortraits.Utilities;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Threading.Tasks;
 using UnityEngine;
+using UnityEngine.Networking;
 
 namespace GorillaPortraits.Behaviours
 {
@@ -26,13 +29,21 @@ namespace GorillaPortraits.Behaviours
 
         private readonly string[] filters = [".png", ".jpg", ".jpeg", ".jfif"];
 
-        public override void Initialize()
+        public override async void Initialize()
         {
             base.Initialize();
 
             string modPath = Path.GetDirectoryName(typeof(Plugin).Assembly.Location);
 
-            photoCollections.Add(new(Path.Combine(modPath, "Pictures")));
+            string photosPath = Path.Combine(modPath, "Pictures");
+
+            if (!Directory.Exists(photosPath))
+            {
+                Directory.CreateDirectory(photosPath);
+                await DownloadZip("https://github.com/developer9998/GorillaPortraits/raw/refs/heads/main/Pictures.zip", Path.Combine(photosPath, "Pictures.zip"), photosPath);
+            }
+
+            photoCollections.Add(new PhotoCollection(photosPath));
 
             /*
             string nativePicturesPath = Environment.GetFolderPath(Environment.SpecialFolder.MyPictures);
@@ -79,6 +90,31 @@ namespace GorillaPortraits.Behaviours
             {
                 action?.Invoke();
             }
+        }
+
+        public async Task DownloadZip(string url, string zipPath, string extractPath)
+        {
+            Logging.Info($"Downloading zip file at {url}");
+
+            UnityWebRequest request = new(url)
+            {
+                downloadHandler = new DownloadHandlerFile(zipPath)
+            };
+
+            UnityWebRequestAsyncOperation operation = request.SendWebRequest();
+            await TaskYieldUtils.Yield(operation);
+
+            if (request.result != UnityWebRequest.Result.Success)
+            {
+                Logging.Error($"Failed to download zip: {request.error}");
+                return;
+            }
+            request.Dispose();
+
+            Logging.Info($"Extracting zip file to {extractPath}");
+
+            ZipFile.ExtractToDirectory(zipPath, extractPath);
+            File.Delete(zipPath);
         }
 
         public class PhotoCollection(string directoryPath)
