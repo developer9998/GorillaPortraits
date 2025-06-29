@@ -25,13 +25,15 @@ namespace GorillaPortraits.Behaviours
 
         private List<Photo> initialPhotoList = null;
 
-        private string dataPath;
+        private string modDirectory;
+        private string dataDirectory;
 
         public override void Initialize()
         {
             base.Initialize();
 
-            dataPath = Path.Combine(Path.GetDirectoryName(typeof(Plugin).Assembly.Location), "Data");
+            modDirectory = Path.GetDirectoryName(typeof(Plugin).Assembly.Location);
+            dataDirectory = Path.Combine(modDirectory, "Data");
 
             PhotoManager.OnPhotosRecieved += OnPhotosRecieved;
             ShelfManager.OnShelvesReady += OnShelvesLoaded;
@@ -56,14 +58,14 @@ namespace GorillaPortraits.Behaviours
             {
                 string displayName = shelf.displayName;
 
-                if (!Directory.Exists(dataPath))
+                if (!Directory.Exists(dataDirectory))
                 {
                     Logging.Info("Creating data directory - skipping load");
-                    Directory.CreateDirectory(dataPath);
+                    Directory.CreateDirectory(dataDirectory);
                     break;
                 }
 
-                string dataEntry = Path.Combine(dataPath, $"{displayName}.json");
+                string dataEntry = Path.Combine(dataDirectory, $"{displayName}.json");
                 if (!File.Exists(dataEntry))
                 {
                     Logging.Warning($"Data file for {displayName} not found");
@@ -88,9 +90,15 @@ namespace GorillaPortraits.Behaviours
 
                     if (data is null) continue;
 
+                    if (File.Exists(data.Path))
+                    {
+                        Logging.Warning(data.Path);
+                        data.Path = data.Path.RemoveStart(modDirectory).TrimStart('/').TrimStart('\\');
+                    }
+
                     Logging.Info(data.Path);
 
-                    if (initialPhotoList.Find(photo => photo.File is not null && photo.File.FullName == data.Path) is Photo photo)
+                    if (initialPhotoList.Find(photo => photo.RelativePath == data.Path) is Photo photo)
                     {
                         Logging.Info($"Image found: {photo}");
 
@@ -149,7 +157,7 @@ namespace GorillaPortraits.Behaviours
             {
                 data = new()
                 {
-                    Path = portrait.currentPhoto.File.FullName,
+                    Path = portrait.currentPhoto.RelativePath,
                     Position = portrait.transform.localPosition,
                     Rotation = portrait.transform.localEulerAngles
                 };
@@ -197,7 +205,11 @@ namespace GorillaPortraits.Behaviours
 
         public void SaveData()
         {
-            if (perShelfData is null || perShelfData.Count == 0) return;
+            if (perShelfData is null || perShelfData.Count == 0)
+            {
+                Logging.Warning("perShelfData is null/empty");
+                return;
+            }
 
             for(int i = 0; i < perShelfData.Count; i++)
             {
@@ -208,13 +220,20 @@ namespace GorillaPortraits.Behaviours
 
         public void SaveData(string displayName)
         {
-            if (displayName is null || !perShelfData.TryGetValue(displayName, out List<PhotoData> list)) return;
+            if (displayName is null || !perShelfData.TryGetValue(displayName, out List<PhotoData> list))
+            {
+                Logging.Warning($"perShelfData for {(displayName is null ? "NULL!!" : displayName)} is NULL!!");
+                return;
+            }
 
-            if (!Directory.Exists(dataPath)) Directory.CreateDirectory(dataPath);
+            Logging.Info(displayName);
+
+            if (!Directory.Exists(dataDirectory)) Directory.CreateDirectory(dataDirectory);
 
             string serialization = JsonConvert.SerializeObject(list, Formatting.Indented);
+            Logging.Info(serialization);
 
-            File.WriteAllText(Path.Combine(dataPath, $"{displayName}.json"), serialization);
+            File.WriteAllText(Path.Combine(dataDirectory, $"{displayName}.json"), serialization);
         }
 
         [Serializable]

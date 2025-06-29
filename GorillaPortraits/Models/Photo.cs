@@ -1,5 +1,4 @@
 ﻿using System;
-using System.IO;
 using UnityEngine;
 
 namespace GorillaPortraits.Models
@@ -11,21 +10,16 @@ namespace GorillaPortraits.Models
 
         public Sprite Sprite;
 
-        public FileInfo File;
+        public string RelativePath;
 
         public Color Colour = Color.white;
 
         public Color BackgroundColour = Color.grey;
 
-        public Photo(FileInfo info, Sprite sprite)
+        public Photo(string relativePath, Texture2D texture)
         {
-            File = info;
-            Sprite = sprite;
-        }
+            RelativePath = relativePath;
 
-        public Photo(FileInfo info, Texture2D texture)
-        {
-            File = info;
             Sprite sprite = Sprite.Create(texture, new Rect(0, 0, texture.width, texture.height), Vector2.zero);
             sprite.name = texture.name;
             Sprite = sprite;

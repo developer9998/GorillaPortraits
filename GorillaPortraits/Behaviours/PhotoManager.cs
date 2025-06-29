@@ -29,13 +29,15 @@ namespace GorillaPortraits.Behaviours
 
         private readonly string[] filters = [".png", ".jpg", ".jpeg", ".jfif"];
 
+        private string modDirectory;
+
         public override async void Initialize()
         {
             base.Initialize();
 
-            string modPath = Path.GetDirectoryName(typeof(Plugin).Assembly.Location);
+            modDirectory = Path.GetDirectoryName(typeof(Plugin).Assembly.Location);
 
-            string photosPath = Path.Combine(modPath, "Pictures");
+            string photosPath = Path.Combine(modDirectory, "Pictures");
 
             if (!Directory.Exists(photosPath))
             {
@@ -78,8 +80,7 @@ namespace GorillaPortraits.Behaviours
 
         private async void LoadPhotos(Action callback)
         {
-            IEnumerable<Task> tasks = photoCollections.Select(collection => collection.LoadPhotos());
-            await Task.WhenAll(tasks: tasks);
+            await Task.WhenAll(photoCollections.Select(collection => collection.LoadPhotos()));
             photoCollections.ForEach(collection => photoListCache.AddOrUpdate(collection, collection.Photos));
             callback?.Invoke();
         }
@@ -165,6 +166,7 @@ namespace GorillaPortraits.Behaviours
                             completionSource.SetResult(texture);
                             return;
                         }
+
                         Destroy(texture);
                         completionSource.SetResult(null);
                     });
@@ -173,7 +175,8 @@ namespace GorillaPortraits.Behaviours
 
                     if (texture)
                     {
-                        Photo photo = new(file, texture);
+                        string relativePath = filePath.RemoveStart(Instance.modDirectory).TrimStart('/').TrimStart('\\');
+                        Photo photo = new(relativePath, texture);
                         photoCache.AddOrUpdate(filePath, (photo, dateTime));
                         Photos.Add(photo);
                         continue;
