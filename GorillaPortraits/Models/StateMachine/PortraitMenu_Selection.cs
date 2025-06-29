@@ -1,4 +1,5 @@
-﻿using GorillaPortraits.Behaviours.Objects;
+﻿using GorillaPortraits.Behaviours;
+using GorillaPortraits.Behaviours.Objects;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
@@ -24,6 +25,14 @@ namespace GorillaPortraits.Models.StateMachine
             RefreshMenu();
         }
 
+        public override void Initialize()
+        {
+            base.Initialize();
+
+            int indexOf = photos.FindIndex(photo => photo == portrait.currentPhoto);
+            portrait.currentPage = indexOf != -1 ? Mathf.FloorToInt(indexOf / (float)pageCapacity) : 0;
+        }
+
         public override void Resume()
         {
             base.Resume();
@@ -46,6 +55,7 @@ namespace GorillaPortraits.Models.StateMachine
         {
             if (button is PhotoButton photoButton)
             {
+                PhotoManager.Instance.lastSelectedPhoto = photoButton.Photo;
                 portrait.currentPhoto = photoButton.Photo;
                 RefreshMenu();
             }

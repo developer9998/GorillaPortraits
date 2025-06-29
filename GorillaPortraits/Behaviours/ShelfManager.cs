@@ -59,7 +59,7 @@ namespace GorillaPortraits.Behaviours
         {
             GameObject gameObject = Instantiate(prefab, null);
             Portrait portrait = gameObject.GetComponent<Portrait>();
-            portrait.currentPhoto = PhotoManager.Instance.GetPhotos().First();
+            portrait.currentPhoto = PhotoManager.Instance.lastSelectedPhoto ?? PhotoManager.Instance.GetPhotos().First();
             portrait.shelf = shelf;
             portrait.wasSwappedLeft = !isLeftHand;
             portrait.portraitState.SwitchState(new PortraitState_InHand(portrait, isLeftHand, true));

@@ -2,6 +2,7 @@
 
 #if PLUGIN
 using System;
+using GorillaPortraits.Models.StateMachine;
 using HandIndicator = GorillaTriggerColliderHandIndicator;
 #endif
 
@@ -27,9 +28,19 @@ namespace GorillaPortraits.Behaviours.Objects
 
         private static float lastPressTime;
 
+        private Portrait portrait;
+
+        public void Start()
+        {
+            portrait = GetComponentInParent<Portrait>(true);
+        }
+
         public void OnTriggerEnter(Collider other)
         {
             if (OnCooldown || !other.TryGetComponent(out HandIndicator component))
+                return;
+
+            if (portrait && portrait.portraitState.CurrentState is PortraitState_InHand hand && hand.isLeftHand == component.isLeftHand)
                 return;
 
             lastPressTime = Time.realtimeSinceStartup;

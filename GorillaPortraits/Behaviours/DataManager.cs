@@ -84,7 +84,7 @@ namespace GorillaPortraits.Behaviours
 
                 GameObject prefab = shelf.basket.portraitPrefab;
 
-                for(int i = 0; i < photoDataCollection.Count; i++)
+                for (int i = 0; i < photoDataCollection.Count; i++)
                 {
                     PhotoData data = photoDataCollection[i];
 
@@ -211,7 +211,7 @@ namespace GorillaPortraits.Behaviours
                 return;
             }
 
-            for(int i = 0; i < perShelfData.Count; i++)
+            for (int i = 0; i < perShelfData.Count; i++)
             {
                 string displayName = perShelfData.Keys.ElementAtOrDefault(i);
                 SaveData(displayName);

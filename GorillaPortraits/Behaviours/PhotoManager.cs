@@ -1,7 +1,6 @@
 ﻿using GorillaNetworking;
 using GorillaPortraits.Models;
 using GorillaPortraits.Tools;
-using GorillaPortraits.Utilities;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -21,6 +20,10 @@ namespace GorillaPortraits.Behaviours
         /// </summary>
         public static Action<bool, List<Photo>> OnPhotosRecieved;
 
+#nullable enable
+        public Photo? lastSelectedPhoto = null;
+#nullable disable
+
         private readonly List<PhotoCollection> photoCollections = [];
 
         private readonly Dictionary<PhotoCollection, List<Photo>> photoListCache = [];
@@ -29,23 +32,18 @@ namespace GorillaPortraits.Behaviours
 
         private readonly string[] filters = [".png", ".jpg", ".jpeg", ".jfif"];
 
-        private string modDirectory;
+        private string modDirectory, photoDirectory;
 
-        public override async void Initialize()
+        public override void Initialize()
         {
             base.Initialize();
 
             modDirectory = Path.GetDirectoryName(typeof(Plugin).Assembly.Location);
 
-            string photosPath = Path.Combine(modDirectory, "Pictures");
+            photoDirectory = Path.Combine(modDirectory, "Pictures");
+            if (!Directory.Exists(photoDirectory)) Directory.CreateDirectory(photoDirectory);
 
-            if (!Directory.Exists(photosPath))
-            {
-                Directory.CreateDirectory(photosPath);
-                await DownloadZip("https://github.com/developer9998/GorillaPortraits/raw/refs/heads/main/Pictures.zip", Path.Combine(photosPath, "Pictures.zip"), photosPath);
-            }
-
-            photoCollections.Add(new PhotoCollection(photosPath));
+            photoCollections.Add(new PhotoCollection(photoDirectory));
 
             /*
             string nativePicturesPath = Environment.GetFolderPath(Environment.SpecialFolder.MyPictures);
@@ -82,6 +80,15 @@ namespace GorillaPortraits.Behaviours
         {
             await Task.WhenAll(photoCollections.Select(collection => collection.LoadPhotos()));
             photoCollections.ForEach(collection => photoListCache.AddOrUpdate(collection, collection.Photos));
+
+            if (photoListCache.Sum(cache => cache.Key.Photos.Count) == 0)
+            {
+                Logging.Warning("No photos loaded - downloading zip from GitHub");
+                await DownloadZip("https://github.com/developer9998/GorillaPortraits/raw/refs/heads/main/Pictures.zip", Path.Combine(photoDirectory, "Pictures.zip"), photoDirectory);
+                LoadPhotos(callback);
+                return;
+            }
+
             callback?.Invoke();
         }
 
@@ -95,22 +102,25 @@ namespace GorillaPortraits.Behaviours
 
         public async Task DownloadZip(string url, string zipPath, string extractPath)
         {
-            Logging.Info($"Downloading zip file at {url}");
+            Logging.Info($"Downloading zip file from {url}");
 
-            UnityWebRequest request = new(url)
+            using UnityWebRequest request = new(url)
             {
                 downloadHandler = new DownloadHandlerFile(zipPath)
             };
 
-            UnityWebRequestAsyncOperation operation = request.SendWebRequest();
-            await TaskYieldUtils.Yield(operation);
+            TaskCompletionSource<UnityWebRequest> completionSource = new();
 
-            if (request.result != UnityWebRequest.Result.Success)
+            UnityWebRequestAsyncOperation operation = request.SendWebRequest();
+            operation.completed += _ => completionSource.SetResult(operation.webRequest);
+
+            await completionSource.Task;
+
+            if (request.result > UnityWebRequest.Result.Success)
             {
-                Logging.Error($"Failed to download zip: {request.error}");
+                Logging.Error($"Failed to download zip with result {request.result}: {request.error}");
                 return;
             }
-            request.Dispose();
 
             Logging.Info($"Extracting zip file to {extractPath}");
 
@@ -118,13 +128,13 @@ namespace GorillaPortraits.Behaviours
             File.Delete(zipPath);
         }
 
-        public class PhotoCollection(string directoryPath)
+        public class PhotoCollection(string path)
         {
-            public DirectoryInfo Directory = new(directoryPath);
+            public DirectoryInfo Directory = new(path);
 
             public List<Photo> Photos = [];
 
-            private readonly Dictionary<string, (Photo photo, DateTime dateTime)> photoCache = [];
+            private readonly Dictionary<string, (Photo photo, DateTime writeTime)> photoCache = [];
 
             public async Task LoadPhotos()
             {
@@ -139,16 +149,16 @@ namespace GorillaPortraits.Behaviours
                     if (extension is null || extension.Length == 0 || !Instance.filters.Contains(extension))
                         continue;
 
-                    string filePath = file.FullName;
-                    DateTime dateTime = file.LastWriteTime;
+                    string path = file.FullName;
+                    DateTime writeTime = file.LastWriteTime;
 
-                    if (photoCache.TryGetValue(filePath, out (Photo photo, DateTime dateTime) cache) && cache.dateTime == dateTime)
+                    if (photoCache.TryGetValue(path, out (Photo photo, DateTime writeTime) cache) && cache.writeTime == writeTime)
                     {
                         Photos.Add(cache.photo);
                         continue;
                     }
 
-                    byte[] bytes = await File.ReadAllBytesAsync(filePath);
+                    byte[] bytes = await File.ReadAllBytesAsync(path);
 
                     TaskCompletionSource<Texture2D> completionSource = new();
 
@@ -175,15 +185,15 @@ namespace GorillaPortraits.Behaviours
 
                     if (texture)
                     {
-                        string relativePath = filePath.RemoveStart(Instance.modDirectory).TrimStart('/').TrimStart('\\');
+                        string relativePath = path.RemoveStart(Instance.modDirectory).TrimStart('/').TrimStart('\\');
                         Photo photo = new(relativePath, texture);
-                        photoCache.AddOrUpdate(filePath, (photo, dateTime));
+                        photoCache.AddOrUpdate(path, (photo, writeTime));
                         Photos.Add(photo);
                         continue;
                     }
 
                     Logging.Warning("Texture not could be loaded");
-                    Logging.Warning(filePath);
+                    Logging.Warning(path);
                 }
             }
         }

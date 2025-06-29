@@ -94,7 +94,7 @@ namespace GorillaPortraits.Behaviours.Objects
             numColliders = Physics.OverlapSphereNonAlloc(center, radius, hitColliders, layerMask, QueryTriggerInteraction.Collide);
             if (numColliders == 0) return null;
 
-            for(int i = 0; i < numColliders; i++)
+            for (int i = 0; i < numColliders; i++)
             {
                 if (Array.Find(placementSensors, sensor => hitColliders[i] == sensor) is BoxCollider sensor && sensor)
                 {
