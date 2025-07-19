@@ -25,8 +25,9 @@ namespace GorillaPortraits.Behaviours
 
         private List<Photo> initialPhotoList = null;
 
-        private string modDirectory;
-        private string dataDirectory;
+        private string modDirectory, dataDirectory;
+
+        private JsonSerializerSettings serializeSettings, deserializeSettings;
 
         public override void Initialize()
         {
@@ -34,6 +35,20 @@ namespace GorillaPortraits.Behaviours
 
             modDirectory = Path.GetDirectoryName(typeof(Plugin).Assembly.Location);
             dataDirectory = Path.Combine(modDirectory, "Data");
+
+            serializeSettings = new JsonSerializerSettings
+            {
+                TypeNameHandling = TypeNameHandling.All,
+                CheckAdditionalContent = true,
+                Formatting = Formatting.Indented
+            };
+            serializeSettings.Converters.Add(new Vector3Converter());
+
+            deserializeSettings = new JsonSerializerSettings
+            {
+                TypeNameHandling = TypeNameHandling.All
+            };
+            deserializeSettings.Converters.Add(new Vector3Converter());
 
             PhotoManager.OnPhotosRecieved += OnPhotosRecieved;
             ShelfManager.OnShelvesReady += OnShelvesLoaded;
@@ -72,7 +87,7 @@ namespace GorillaPortraits.Behaviours
                     continue;
                 }
 
-                List<PhotoData> photoDataCollection = JsonConvert.DeserializeObject<List<PhotoData>>(await File.ReadAllTextAsync(dataEntry));
+                List<PhotoData> photoDataCollection = JsonConvert.DeserializeObject<List<PhotoData>>(await File.ReadAllTextAsync(dataEntry), deserializeSettings);
                 if (photoDataCollection is null)
                 {
                     Logging.Warning($"Data not identified for {displayName} - removing file");
@@ -230,7 +245,7 @@ namespace GorillaPortraits.Behaviours
 
             if (!Directory.Exists(dataDirectory)) Directory.CreateDirectory(dataDirectory);
 
-            string serialization = JsonConvert.SerializeObject(list, Formatting.Indented);
+            string serialization = JsonConvert.SerializeObject(list, serializeSettings);
             Logging.Info(serialization);
 
             File.WriteAllText(Path.Combine(dataDirectory, $"{displayName}.json"), serialization);

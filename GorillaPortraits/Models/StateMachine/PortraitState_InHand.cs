@@ -66,8 +66,9 @@ namespace GorillaPortraits.Models.StateMachine
         public void MovePortrait()
         {
             bool atRestingLocation = interpolationTime == 1;
-            Vector3 position = atRestingLocation ? targetHandPosition : Vector3.Lerp(originPosition, targetHandPosition, interpolationTime);
-            Quaternion quaternion = atRestingLocation ? targetHandRotation : Quaternion.Lerp(originRotation, targetHandRotation, interpolationTime);
+            float t = atRestingLocation ? 1f : AnimationCurves.EaseInOutSine.Evaluate(interpolationTime);
+            Vector3 position = Vector3.Lerp(originPosition, targetHandPosition, t);
+            Quaternion quaternion = Quaternion.Lerp(originRotation, targetHandRotation, t);
 
             portrait.transform.localPosition = position;
             portrait.transform.localRotation = quaternion;

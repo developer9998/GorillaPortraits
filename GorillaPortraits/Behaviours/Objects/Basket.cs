@@ -79,29 +79,13 @@ namespace GorillaPortraits.Behaviours.Objects
         public bool InGrabArea(Vector3 center, float radius = 0.15f)
         {
             numColliders = Physics.OverlapSphereNonAlloc(center, radius, hitColliders, layerMask, QueryTriggerInteraction.Collide);
-            if (numColliders == 0) return false;
-
-            for (int i = 0; i < numColliders; i++)
-            {
-                if (hitColliders[i] == grabSensor)
-                    return true;
-            }
-
-            return false;
+            return numColliders > 0 && hitColliders.Take(numColliders).Contains(grabSensor);
         }
 
         public bool InReserveArea(Vector3 center, float radius = 0.05f)
         {
             numColliders = Physics.OverlapSphereNonAlloc(center, radius, hitColliders, layerMask, QueryTriggerInteraction.Collide);
-            if (numColliders == 0) return false;
-
-            for (int i = 0; i < numColliders; i++)
-            {
-                if (hitColliders[i] == depositSensor)
-                    return true;
-            }
-
-            return false;
+            return numColliders > 0 && hitColliders.Take(numColliders).Contains(depositSensor);
         }
 #endif
     }

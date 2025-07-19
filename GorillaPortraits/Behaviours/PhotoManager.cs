@@ -1,8 +1,8 @@
-﻿using GorillaNetworking;
+﻿using BepInEx;
+using GorillaNetworking;
 using GorillaPortraits.Models;
 using GorillaPortraits.Tools;
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
@@ -27,8 +27,6 @@ namespace GorillaPortraits.Behaviours
         private readonly List<PhotoCollection> photoCollections = [];
 
         private readonly Dictionary<PhotoCollection, List<Photo>> photoListCache = [];
-
-        private readonly ConcurrentQueue<Action> unityThreadQueue = [];
 
         private readonly string[] filters = [".png", ".jpg", ".jpeg", ".jfif"];
 
@@ -90,14 +88,6 @@ namespace GorillaPortraits.Behaviours
             }
 
             callback?.Invoke();
-        }
-
-        public void Update()
-        {
-            while (unityThreadQueue.TryDequeue(out Action action))
-            {
-                action?.Invoke();
-            }
         }
 
         public async Task DownloadZip(string url, string zipPath, string extractPath)
@@ -162,7 +152,7 @@ namespace GorillaPortraits.Behaviours
 
                     TaskCompletionSource<Texture2D> completionSource = new();
 
-                    Instance.unityThreadQueue.Enqueue(delegate ()
+                    ThreadingHelper.Instance.StartSyncInvoke(delegate ()
                     {
                         Texture2D texture = new(2, 2)
                         {
